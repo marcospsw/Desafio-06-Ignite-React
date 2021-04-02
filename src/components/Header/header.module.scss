@@ -1,0 +1,15 @@
+.headerContainer {
+  height: 5rem;
+  border-bottom: 1px solid var(--gray-900);
+}
+
+.logoContainer {
+  max-width: 1120px;
+  height: 5rem;
+  margin: 0 auto;
+
+  padding: 0 2rem;
+
+  display: flex;
+  align-items: center;
+}
