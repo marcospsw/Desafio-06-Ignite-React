@@ -32,7 +32,9 @@ interface HomeProps {
 }
 
 export default function Home({ postsPagination }: HomeProps) {
-  const [pages, setPages] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [nextPage, setNextPage] = useState(postsPagination.next_page);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     postsPagination.results.map(post => {
@@ -45,13 +47,35 @@ export default function Home({ postsPagination }: HomeProps) {
       return;
     });
 
-    setPages(postsPagination.results);
+    setPosts(postsPagination.results);
   }, []);
 
-  function handlePages() {
-    fetch(postsPagination.next_page)
-      .then(response => response.json())
-      .then(data => setPages([...postsPagination.results, data.results[0]]));
+  async function handlePages() {
+    if (currentPage !== 1 && nextPage === null) {
+      return;
+    }
+    const postsResults = await fetch(postsPagination.next_page).then(response =>
+      response.json()
+    );
+
+    const newPosts = postsResults.results.map(post => {
+      return {
+        uid: post.uid,
+        first_publication_date: format(
+          new Date(post.first_publication_date),
+          'dd LLL yyyy'
+        ).toLocaleLowerCase('pt-BR'),
+        data: {
+          title: post.data.title,
+          subtitle: post.data.subtitle,
+          author: post.data.author,
+        },
+      };
+    });
+
+    setNextPage(postsResults.next_page);
+    setCurrentPage(postsResults.page);
+    setPosts([...posts, ...newPosts]);
   }
 
   return (
@@ -61,7 +85,7 @@ export default function Home({ postsPagination }: HomeProps) {
       </Head>
       <Header />
 
-      {pages.map(post => {
+      {posts.map(post => {
         return (
           <main key={post.uid} className={styles.container}>
             <Link href={`/post/${post.uid}`}>
@@ -79,12 +103,10 @@ export default function Home({ postsPagination }: HomeProps) {
           </main>
         );
       })}
-      {postsPagination.next_page ? (
+      {postsPagination.next_page && (
         <a className={styles.button}>
-          <button onClick={handlePages}>Carregar mais posts</button>{' '}
+          <p onClick={handlePages}>Carregar mais posts</p>{' '}
         </a>
-      ) : (
-        ''
       )}
     </>
   );
