@@ -8,11 +8,15 @@ import styles from './post.module.scss';
 import { format } from 'date-fns';
 import { FiCalendar, FiClock, FiUser } from 'react-icons/fi';
 import { useRouter } from 'next/router';
+import CommentBox from '../../components/CommentBox';
+import Link from 'next/link';
 
 interface Post {
   first_publication_date: string | null;
+  last_publication_date: string | null;
   data: {
     title: string;
+    uid: string;
     banner: {
       url: string;
     };
@@ -28,9 +32,12 @@ interface Post {
 
 interface PostProps {
   post: Post;
+  nextPost: Post;
+  prevPost: Post;
+  preview: boolean;
 }
 
-export default function Post({ post }: PostProps) {
+export default function Post({ post, nextPost, prevPost, preview }: PostProps) {
   const router = useRouter();
 
   if (router.isFallback) {
@@ -38,35 +45,25 @@ export default function Post({ post }: PostProps) {
   }
 
   const totalWords = post.data.content.reduce((total, contentItem) => {
-    total += contentItem.heading?.split(' ').length;
+    total = contentItem.heading?.split(' ').length;
 
     const words = contentItem.body.map(item => item.text.split(' ').length);
 
-    words.map(word => (total += word));
+    words.map(word => (total = total + word));
 
     return total;
   }, 0);
 
   const readTime = Math.ceil(totalWords / 200);
 
-  // const totalWords = post.data.content.reduce((total, contentItem) => {
-
-  //   total += contentItem.heading?.split(' ').length;
-
-  //   const words = contentItem.body.map(item => item.text.split(' ').length);
-
-  //   words.map(word => (total += word));
-
-  //   return total;
-  // }, 0);
-
-  // const readTime = Math.ceil(totalWords / 200);
-
-  // ENTENDER ISSO DEPOIS
-
   const formatedDate = format(
     new Date(post.first_publication_date),
     'dd LLL yyyy'
+  ).toLocaleLowerCase('pt-BR');
+
+  const formatedEditDate = format(
+    new Date(post.last_publication_date),
+    "dd LLL yyyy, 'às' kk:mm"
   ).toLocaleLowerCase('pt-BR');
 
   return (
@@ -80,12 +77,19 @@ export default function Post({ post }: PostProps) {
       <main className={styles.container}>
         <h1>{post.data.title}</h1>
         <div className={styles.info}>
-          <FiCalendar />
-          <time>{formatedDate}</time>
-          <FiUser />
-          <span>{post.data.author}</span>
-          <FiClock />
-          <span>{readTime} min</span>
+          <time>
+            <FiCalendar />
+            {formatedDate}
+          </time>
+          <span>
+            <FiUser />
+            {post.data.author}
+          </span>
+          <span>
+            <FiClock />
+            {readTime} min
+          </span>
+          <span>* editado em {formatedEditDate && formatedEditDate}</span>
         </div>
 
         {post.data.content.map(content => {
@@ -102,6 +106,44 @@ export default function Post({ post }: PostProps) {
           );
         })}
       </main>
+
+      <footer className={styles.footerContainer}>
+        {prevPost.data.title.length === 0 ? (
+          <section />
+        ) : (
+          <section>
+            <p>{prevPost.data.title}</p>
+            <Link href={`/post/${prevPost.data.uid}`}>
+              <a>
+                <span>Post anterior</span>
+              </a>
+            </Link>
+          </section>
+        )}
+
+        {nextPost.data.title.length === 0 ? (
+          <section />
+        ) : (
+          <section>
+            <p>{nextPost.data.title}</p>
+            <Link href={`/post/${nextPost.data.uid}`}>
+              <a>
+                <span>Proximo post</span>
+              </a>
+            </Link>
+          </section>
+        )}
+      </footer>
+
+      <CommentBox />
+
+      {preview && (
+        <aside>
+          <Link href="/api/exit-preview">
+            <a>Sair do modo Preview</a>
+          </Link>
+        </aside>
+      )}
     </>
   );
 }
@@ -124,14 +166,21 @@ export const getStaticPaths: GetStaticPaths = async () => {
   };
 };
 
-export const getStaticProps: GetStaticProps = async ({ params }) => {
+export const getStaticProps: GetStaticProps = async ({
+  params,
+  preview = false,
+  previewData,
+}) => {
   const { slug } = params;
   const prismic = getPrismicClient();
 
-  const response = await prismic.getByUID('posts', String(slug), {});
+  const response = await prismic.getByUID('posts', String(slug), {
+    ref: previewData?.ref ?? null,
+  });
 
   const post = {
     first_publication_date: response.first_publication_date,
+    last_publication_date: response.last_publication_date,
     uid: response.uid,
     data: {
       title: response.data.title,
@@ -149,10 +198,48 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     },
   };
 
-  // console.log(post.data.content);
+  const responsePrevPost = await prismic.query(
+    [Prismic.Predicates.at('document.type', 'posts')],
+    {
+      pageSize: 1,
+      after: response.id,
+      orderings: '[document.first_publication_date]',
+    }
+  );
+
+  const prevPost = {
+    data: {
+      uid: responsePrevPost.results.map(result => {
+        return result.uid;
+      }),
+      title: responsePrevPost.results.map(result => {
+        return result.data.title;
+      }),
+    },
+  };
+
+  const responseNextPost = await prismic.query(
+    [Prismic.Predicates.at('document.type', 'posts')],
+    {
+      pageSize: 1,
+      after: response.id,
+      orderings: '[document.first_publication_date desc]',
+    }
+  );
+
+  const nextPost = {
+    data: {
+      uid: responseNextPost.results.map(result => {
+        return result.uid;
+      }),
+      title: responseNextPost.results.map(result => {
+        return result.data.title;
+      }),
+    },
+  };
 
   return {
-    props: { post },
+    props: { post, prevPost, nextPost, preview },
     redirect: 60 * 30, // 30 minutes
   };
 };

@@ -16,7 +16,9 @@
 
   .info {
     padding: 0.5rem 0 2rem 0;
-    display: flex;
+    width: 450px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
 
     time {
       margin-left: 0.2rem;
@@ -31,6 +33,13 @@
       margin-top: -2px;
       color: var(--gray-300);
     }
+
+    span:last-child {
+      padding-top: 0.5rem;
+      font-size: 0.8rem;
+      font-style: italic;
+      grid-column: span 3;
+    }
   }
 
   .content {
@@ -42,6 +51,41 @@
 
     p {
       margin-bottom: 1rem;
+    }
+  }
+}
+
+.footerContainer {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  border-top: 1px solid #c4c4c425;
+  display: flex;
+  justify-content: space-between;
+
+  section:first-child {
+    padding-top: 2rem;
+    p {
+      margin-bottom: 1rem;
+    }
+
+    span {
+      font-weight: 900;
+      color: var(--pink-500);
+    }
+  }
+
+  section:last-child {
+    text-align: right;
+    padding-top: 2rem;
+
+    p {
+      margin-bottom: 1rem;
+    }
+
+    span {
+      font-weight: 900;
+      color: var(--pink-500);
     }
   }
 }
